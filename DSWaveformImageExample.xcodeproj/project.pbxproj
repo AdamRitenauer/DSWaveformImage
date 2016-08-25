@@ -27,8 +27,6 @@
 		C3790A1A1828CA740033D193 /* example_sound.m4a in Resources */ = {isa = PBXBuildFile; fileRef = C3790A191828CA740033D193 /* example_sound.m4a */; };
 		C3790A1C1828CC2D0033D193 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C3790A1B1828CC2D0033D193 /* AVFoundation.framework */; };
 		D6EABC4C1D6C010700C5862C /* DSWaveformImageFramework.h in Headers */ = {isa = PBXBuildFile; fileRef = D6EABC4B1D6C010700C5862C /* DSWaveformImageFramework.h */; settings = {ATTRIBUTES = (Public, ); }; };
-		D6EABC5E1D6C010700C5862C /* DSWaveformImageFramework.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D6EABC491D6C010700C5862C /* DSWaveformImageFramework.framework */; };
-		D6EABC5F1D6C010700C5862C /* DSWaveformImageFramework.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = D6EABC491D6C010700C5862C /* DSWaveformImageFramework.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		D6EABC671D6C011600C5862C /* DSWaveformImage.m in Sources */ = {isa = PBXBuildFile; fileRef = C3790A141828CA3A0033D193 /* DSWaveformImage.m */; };
 		D6EABC681D6C011600C5862C /* DSWaveformImageView.m in Sources */ = {isa = PBXBuildFile; fileRef = C3790A161828CA3A0033D193 /* DSWaveformImageView.m */; };
 		D6EABC691D6C063000C5862C /* DSWaveformImage.h in Headers */ = {isa = PBXBuildFile; fileRef = C3790A131828CA3A0033D193 /* DSWaveformImage.h */; settings = {ATTRIBUTES = (Public, ); }; };
@@ -43,28 +41,7 @@
 			remoteGlobalIDString = C37909D61828C9D80033D193;
 			remoteInfo = DSWaveformImageExample;
 		};
-		D6EABC5C1D6C010700C5862C /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = C37909CF1828C9D80033D193 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = D6EABC481D6C010700C5862C;
-			remoteInfo = DSWaveformImageFramework;
-		};
 /* End PBXContainerItemProxy section */
-
-/* Begin PBXCopyFilesBuildPhase section */
-		D6EABC651D6C010700C5862C /* Embed Frameworks */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 10;
-			files = (
-				D6EABC5F1D6C010700C5862C /* DSWaveformImageFramework.framework in Embed Frameworks */,
-			);
-			name = "Embed Frameworks";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		C37909D71828C9D80033D193 /* DSWaveformImageExample.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DSWaveformImageExample.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -107,7 +84,6 @@
 				C37909DD1828C9D80033D193 /* CoreGraphics.framework in Frameworks */,
 				C37909DF1828C9D80033D193 /* UIKit.framework in Frameworks */,
 				C37909DB1828C9D80033D193 /* Foundation.framework in Frameworks */,
-				D6EABC5E1D6C010700C5862C /* DSWaveformImageFramework.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -253,12 +229,10 @@
 				C37909D31828C9D80033D193 /* Sources */,
 				C37909D41828C9D80033D193 /* Frameworks */,
 				C37909D51828C9D80033D193 /* Resources */,
-				D6EABC651D6C010700C5862C /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				D6EABC5D1D6C010700C5862C /* PBXTargetDependency */,
 			);
 			name = DSWaveformImageExample;
 			productName = DSWaveformImageExample;
@@ -407,11 +381,6 @@
 			isa = PBXTargetDependency;
 			target = C37909D61828C9D80033D193 /* DSWaveformImageExample */;
 			targetProxy = C3790A001828C9D80033D193 /* PBXContainerItemProxy */;
-		};
-		D6EABC5D1D6C010700C5862C /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = D6EABC481D6C010700C5862C /* DSWaveformImageFramework */;
-			targetProxy = D6EABC5C1D6C010700C5862C /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 

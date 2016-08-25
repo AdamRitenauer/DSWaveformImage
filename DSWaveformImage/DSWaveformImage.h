@@ -30,6 +30,13 @@ typedef enum {
 @property(nonatomic) DSWaveformStyle style;
 
 + (UIImage *)waveformForAssetAtURL:(NSURL *)url
+							 color:(UIColor *)color
+							height:(CGFloat)height
+				   samplesPerPixel:(Float32)samplesPerPixel
+							 scale:(CGFloat)scale
+							 style:(DSWaveformStyle)style;
+
++ (UIImage *)waveformForAssetAtURL:(NSURL *)url
                              color:(UIColor *)color
                               size:(CGSize)size
                              scale:(CGFloat)scale

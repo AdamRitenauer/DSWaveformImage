@@ -28,6 +28,23 @@
 }
 
 + (UIImage *)waveformForAssetAtURL:(NSURL *)url
+							 color:(UIColor *)color
+							height:(CGFloat)height
+				   samplesPerPixel:(Float32)samplesPerPixel
+							 scale:(CGFloat)scale
+							 style:(DSWaveformStyle)style {
+	AVURLAsset *urlA = [AVURLAsset URLAssetWithURL:url options:nil];
+	DSWaveformImage *waveformImage = [[DSWaveformImage alloc] initWithStyle:style];
+	
+	waveformImage.graphColor = color;
+	samplesPerPixel *= scale;
+	height *= scale;
+	NSData *imageData = [waveformImage renderPNGAudioPictogramLogForAssett:urlA withHeight:height andSamplesPerPixel:samplesPerPixel];
+	
+	return [UIImage imageWithData:imageData scale:scale];
+}
+
++ (UIImage *)waveformForAssetAtURL:(NSURL *)url
                              color:(UIColor *)color
                               size:(CGSize)size
                              scale:(CGFloat)scale
@@ -135,6 +152,22 @@
 
 
 - (NSData *)renderPNGAudioPictogramLogForAssett:(AVURLAsset *)songAsset withSize:(CGSize)size {
+//	
+//	_graphSize = size;
+//	NSInteger requiredNumberOfSamples = _graphSize.width;
+//	
+//	
+//	int sampleCount = allData.length / bytesPerSample;
+//	
+//	// FOR THE MOMENT WE ASSUME: sampleCount > requiredNumberOfSamples (SEE (a))
+//	// -> DOWNSAMPLE THE FINAL SAMPLES ARRAY
+//	// TODO: SUPPORT UPSAMPLING THE DATA
+//	Float32 samplesPerPixel = sampleCount / (float) requiredNumberOfSamples; // (a) always > 1
+
+	return [[NSData alloc] init];
+}
+
+- (NSData *)renderPNGAudioPictogramLogForAssett:(AVURLAsset *)songAsset withHeight:(CGFloat)height andSamplesPerPixel:(int) samplesPerPixel {
   NSError *error = nil;
   AVAssetReader *reader = [[AVAssetReader alloc] initWithAsset:songAsset error:&error];
   AVAssetTrack *songTrack = [songAsset.tracks objectAtIndex:0];
@@ -160,16 +193,11 @@
       channelCount = fmtDesc -> mChannelsPerFrame;
     }
   }
-
-  _graphSize = size;
-  NSInteger requiredNumberOfSamples = _graphSize.width;
-  UInt32 bytesPerSample = 2 * channelCount;
-  Float32 normalizeMax = fabsf(noiseFloor);
-  NSMutableData *fullSongData = [[NSMutableData alloc] initWithCapacity:requiredNumberOfSamples];
+	
   [reader startReading];
 
   // first, read entire reader data (end of this while loop; copy all data over)
-  NSMutableData *allData = [[NSMutableData alloc] initWithCapacity:requiredNumberOfSamples];
+  NSMutableData *allData = [[NSMutableData alloc] init];
   while (reader.status == AVAssetReaderStatusReading) {
     AVAssetReaderTrackOutput *trackOutput = (AVAssetReaderTrackOutput *) [reader.outputs objectAtIndex:0];
     CMSampleBufferRef sampleBufferRef = [trackOutput copyNextSampleBuffer];
@@ -187,6 +215,12 @@
       CFRelease(sampleBufferRef);
     }
   }
+	
+	UInt32 bytesPerSample = 2 * channelCount;
+	Float32 normalizeMax = fabsf(noiseFloor);
+	NSInteger requiredNumberOfSamples =  allData.length / bytesPerSample / samplesPerPixel;
+	_graphSize = CGSizeMake(requiredNumberOfSamples, height);
+	NSMutableData *fullSongData = [[NSMutableData alloc] initWithCapacity:requiredNumberOfSamples];
 
   NSData *finalData = nil;
 
@@ -195,12 +229,6 @@
   }
 
   if (reader.status == AVAssetReaderStatusCompleted) {
-    int sampleCount = allData.length / bytesPerSample;
-
-    // FOR THE MOMENT WE ASSUME: sampleCount > requiredNumberOfSamples (SEE (a))
-    // -> DOWNSAMPLE THE FINAL SAMPLES ARRAY
-    // TODO: SUPPORT UPSAMPLING THE DATA
-    Float32 samplesPerPixel = sampleCount / (float) requiredNumberOfSamples; // (a) always > 1
 
     // fill the samples with their values
     Float64 totalAmplitude = 0;
