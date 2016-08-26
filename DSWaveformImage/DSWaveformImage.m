@@ -33,31 +33,15 @@
 				   samplesPerPixel:(Float32)samplesPerPixel
 							 scale:(CGFloat)scale
 							 style:(DSWaveformStyle)style {
-	AVURLAsset *urlA = [AVURLAsset URLAssetWithURL:url options:nil];
+
 	DSWaveformImage *waveformImage = [[DSWaveformImage alloc] initWithStyle:style];
 	
 	waveformImage.graphColor = color;
 	samplesPerPixel *= scale;
 	height *= scale;
-	NSData *imageData = [waveformImage renderPNGAudioPictogramLogForAssett:urlA withHeight:height andSamplesPerPixel:samplesPerPixel];
+	NSData *imageData = [waveformImage renderPNGAudioPictogramLogForURL:url withHeight:height andFramesPerPixel:samplesPerPixel];
 	
 	return [UIImage imageWithData:imageData scale:scale];
-}
-
-+ (UIImage *)waveformForAssetAtURL:(NSURL *)url
-                             color:(UIColor *)color
-                              size:(CGSize)size
-                             scale:(CGFloat)scale
-                             style:(DSWaveformStyle)style {
-  AVURLAsset *urlA = [AVURLAsset URLAssetWithURL:url options:nil];
-  DSWaveformImage *waveformImage = [[DSWaveformImage alloc] initWithStyle:style];
-  
-  waveformImage.graphColor = color;
-  size.width *= scale;
-  size.height *= scale;
-  NSData *imageData = [waveformImage renderPNGAudioPictogramLogForAssett:urlA withSize:size];
-
-  return [UIImage imageWithData:imageData scale:scale];
 }
 
 - (void)fillContext:(CGContextRef)context withRect:(CGRect)rect withColor:(UIColor *)color {
@@ -121,9 +105,9 @@
 - (UIImage *)audioImageLogGraph:(Float32 *)samples
                    normalizeMax:(Float32)normalizeMax
                     sampleCount:(NSInteger)sampleCount
-                     imageWidth:(float)imageWidth
                     imageHeight:(float)imageHeight {
 
+  CGFloat imageWidth = (CGFloat) sampleCount;
   _samples = samples;
   _normalizeMax = normalizeMax;
   CGSize imageSize = CGSizeMake(imageWidth, imageHeight);
@@ -150,121 +134,114 @@
   return newImage;
 }
 
+- (NSData *)renderPNGAudioPictogramLogForURL:(NSURL *)url withHeight:(CGFloat)height andFramesPerPixel:(UInt32) framesPerPixel {
 
-- (NSData *)renderPNGAudioPictogramLogForAssett:(AVURLAsset *)songAsset withSize:(CGSize)size {
-//	
-//	_graphSize = size;
-//	NSInteger requiredNumberOfSamples = _graphSize.width;
-//	
-//	
-//	int sampleCount = allData.length / bytesPerSample;
-//	
-//	// FOR THE MOMENT WE ASSUME: sampleCount > requiredNumberOfSamples (SEE (a))
-//	// -> DOWNSAMPLE THE FINAL SAMPLES ARRAY
-//	// TODO: SUPPORT UPSAMPLING THE DATA
-//	Float32 samplesPerPixel = sampleCount / (float) requiredNumberOfSamples; // (a) always > 1
-
-	return [[NSData alloc] init];
-}
-
-- (NSData *)renderPNGAudioPictogramLogForAssett:(AVURLAsset *)songAsset withHeight:(CGFloat)height andSamplesPerPixel:(int) samplesPerPixel {
-  NSError *error = nil;
-  AVAssetReader *reader = [[AVAssetReader alloc] initWithAsset:songAsset error:&error];
-  AVAssetTrack *songTrack = [songAsset.tracks objectAtIndex:0];
-
-  NSDictionary *outputSettingsDict = [[NSDictionary alloc] initWithObjectsAndKeys:
-      [NSNumber numberWithInt:kAudioFormatLinearPCM], AVFormatIDKey,
-      [NSNumber numberWithInt:16], AVLinearPCMBitDepthKey,
-      [NSNumber numberWithBool:NO], AVLinearPCMIsBigEndianKey,
-      [NSNumber numberWithBool:NO], AVLinearPCMIsFloatKey,
-      [NSNumber numberWithBool:NO], AVLinearPCMIsNonInterleaved,
-      nil];
-
-  AVAssetReaderTrackOutput *output = [[AVAssetReaderTrackOutput alloc] initWithTrack:songTrack outputSettings:outputSettingsDict];
-  [reader addOutput:output];
-
-  UInt32 sampleRate, channelCount;
-  NSArray *formatDesc = songTrack.formatDescriptions;
-  for (unsigned int i = 0; i < [formatDesc count]; ++i) {
-    CMAudioFormatDescriptionRef item = (CMAudioFormatDescriptionRef) CFBridgingRetain([formatDesc objectAtIndex:i]);
-    const AudioStreamBasicDescription *fmtDesc = CMAudioFormatDescriptionGetStreamBasicDescription(item);
-    if (fmtDesc) {
-      sampleRate = fmtDesc -> mSampleRate;
-      channelCount = fmtDesc -> mChannelsPerFrame;
-    }
-  }
 	
-  [reader startReading];
-
-  // first, read entire reader data (end of this while loop; copy all data over)
-  NSMutableData *allData = [[NSMutableData alloc] init];
-  while (reader.status == AVAssetReaderStatusReading) {
-    AVAssetReaderTrackOutput *trackOutput = (AVAssetReaderTrackOutput *) [reader.outputs objectAtIndex:0];
-    CMSampleBufferRef sampleBufferRef = [trackOutput copyNextSampleBuffer];
-
-    if (sampleBufferRef) {
-      CMBlockBufferRef blockBufferRef = CMSampleBufferGetDataBuffer(sampleBufferRef);
-
-      size_t length = CMBlockBufferGetDataLength(blockBufferRef);
-      NSMutableData *data = [NSMutableData dataWithLength:length];
-      CMBlockBufferCopyDataBytes(blockBufferRef, 0, length, data.mutableBytes);
-
-      [allData appendData:data];
-
-      CMSampleBufferInvalidate(sampleBufferRef);
-      CFRelease(sampleBufferRef);
-    }
-  }
+	OSStatus ret = noErr;
 	
-	UInt32 bytesPerSample = 2 * channelCount;
+	ExtAudioFileRef extAudioFile;
+	
+	// Open the audio file
+	CFURLRef cfURL = (__bridge CFURLRef _Nonnull)(url);
+	
+	ret = ExtAudioFileOpenURL(cfURL, &extAudioFile);
+	
+	if (ret != noErr) {
+		
+		assert(@"Failed to open Audio File");
+		return nil;
+	}
+	
+	// Set the LPCM format that we are to read
+	AudioStreamBasicDescription asbd = {
+
+		44100.0, //Float64 mSampleRate;
+		kAudioFormatLinearPCM, //AudioFormatID mFormatID;
+		kAudioFormatFlagsNativeFloatPacked, //AudioFormatFlags mFormatFlags;
+		8, //UInt32 mBytesPerPacket;
+		1, //UInt32 mFramesPerPacket;
+		8, //UInt32 mBytesPerFrame;
+		2, //UInt32 mChannelsPerFrame;
+		32, //UInt32 mBitsPerChannel;
+		0 //UInt32 mReserved;
+	};
+	
+	ret = ExtAudioFileSetProperty(extAudioFile, kExtAudioFileProperty_ClientDataFormat, sizeof(AudioStreamBasicDescription), &asbd);
+	
+	if (ret != noErr) {
+		
+		assert(@"Failed to set audio client format");
+		return nil;
+	}
+	
+	// Configure a single buffer that hold framesPerPixel frames,
+	// we will use to loop through the audio file
+	UInt32 bufferSize = framesPerPixel * sizeof(Float32) * asbd.mChannelsPerFrame;
+	void *frames = malloc(bufferSize);
+	
+	AudioBuffer buffer = {
+		2, // UInt32 mNumberChannels;
+		bufferSize,// UInt32 mDataByteSize;
+		frames// void* __nullable mData;
+	};
+	
+	AudioBufferList abl = {
+		1, //UInt32      mNumberBuffers;
+		buffer//AudioBuffer mBuffers[1];
+	};
+	
+	// Create the data buffer to hold waveform data points
+	NSMutableData *waveFormData = [[NSMutableData alloc] init];
+	
+	// Initialize values for waveform normalization
 	Float32 normalizeMax = fabsf(noiseFloor);
-	NSInteger requiredNumberOfSamples =  allData.length / bytesPerSample / samplesPerPixel;
-	_graphSize = CGSizeMake(requiredNumberOfSamples, height);
-	NSMutableData *fullSongData = [[NSMutableData alloc] initWithCapacity:requiredNumberOfSamples];
+	Float64 totalAmplitude = 0;
+	
+	// Read the audio and calculate data points for the wave form
+	UInt32 framesRead = 0;
+	while(true) {
+		
+		framesRead = framesPerPixel;
+		ret = ExtAudioFileRead(extAudioFile, &framesRead, &abl);
+		
+		if (ret == kAudioFileEndOfFileError || framesRead < framesPerPixel) {
+		
+			break;
+		}
+		if (ret != noErr) {
+			
+			assert(@"Failed to set audio client format");
+			return nil;
+		}
+		
+		for(int j = 0; j < framesPerPixel; j++) {
+			
+			Float32 amplitude = ((Float32 *)frames)[j];
+			amplitude = decibel(amplitude);
+			amplitude = minMaxX(amplitude, noiseFloor, 0);
+			
+			totalAmplitude += amplitude;
+		}
+		
+		Float32 medianAmplitude = totalAmplitude / framesPerPixel;
+		if (fabsf(medianAmplitude) > fabsf(normalizeMax)) {
+			normalizeMax = fabsf(medianAmplitude);
+		}
+		
+		[waveFormData appendBytes:&medianAmplitude length:sizeof(medianAmplitude)];
+		totalAmplitude = 0;
+	}
 
-  NSData *finalData = nil;
-
-  if (reader.status == AVAssetReaderStatusFailed || reader.status == AVAssetReaderStatusUnknown) {
-    // Something went wrong. Handle it.
-  }
-
-  if (reader.status == AVAssetReaderStatusCompleted) {
-
-    // fill the samples with their values
-    Float64 totalAmplitude = 0;
-    SInt16 *samples = (SInt16 *) allData.mutableBytes;
-    int j = 0;
-    for (int i = 0; i < requiredNumberOfSamples; i++) {
-      Float32 bucketLimit = (i + 1) * samplesPerPixel;
-      while (j++ < bucketLimit) {
-        Float32 amplitude = (Float32) *samples++;
-        amplitude = decibel(amplitude);
-        amplitude = minMaxX(amplitude, noiseFloor, 0);
-
-        totalAmplitude += amplitude;
-      }
-
-      Float32 medianAmplitude = totalAmplitude / samplesPerPixel;
-      if (fabsf(medianAmplitude) > fabsf(normalizeMax)) {
-        normalizeMax = fabsf(medianAmplitude);
-      }
-
-      [fullSongData appendBytes:&medianAmplitude length:sizeof(medianAmplitude)];
-      totalAmplitude = 0;
-    }
-
-    NSData *normalizedData = [self normalizeData:fullSongData normalizeMax:normalizeMax];
+    NSData *normalizedData = [self normalizeData:waveFormData normalizeMax:normalizeMax];
 
     UIImage *graphImage = [self audioImageLogGraph:(Float32 *) normalizedData.bytes
                                       normalizeMax:normalizeMax
-                                       sampleCount:fullSongData.length / sizeof(Float32)
-                                        imageWidth:requiredNumberOfSamples
+                                       sampleCount:waveFormData.length / sizeof(Float32)
                                        imageHeight:_graphSize.height];
 
-    finalData = UIImagePNGRepresentation(graphImage);
-  }
+    NSData *finalData = UIImagePNGRepresentation(graphImage);
 
-  return finalData;
+	return finalData;
 }
 
 - (NSData *)normalizeData:(NSData *)samples normalizeMax:(Float32)normalizeMax {

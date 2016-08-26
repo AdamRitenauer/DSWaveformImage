@@ -28,9 +28,7 @@
 		C3790A1C1828CC2D0033D193 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C3790A1B1828CC2D0033D193 /* AVFoundation.framework */; };
 		D6EABC4C1D6C010700C5862C /* DSWaveformImageFramework.h in Headers */ = {isa = PBXBuildFile; fileRef = D6EABC4B1D6C010700C5862C /* DSWaveformImageFramework.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		D6EABC671D6C011600C5862C /* DSWaveformImage.m in Sources */ = {isa = PBXBuildFile; fileRef = C3790A141828CA3A0033D193 /* DSWaveformImage.m */; };
-		D6EABC681D6C011600C5862C /* DSWaveformImageView.m in Sources */ = {isa = PBXBuildFile; fileRef = C3790A161828CA3A0033D193 /* DSWaveformImageView.m */; };
 		D6EABC691D6C063000C5862C /* DSWaveformImage.h in Headers */ = {isa = PBXBuildFile; fileRef = C3790A131828CA3A0033D193 /* DSWaveformImage.h */; settings = {ATTRIBUTES = (Public, ); }; };
-		D6EABC6A1D6C063600C5862C /* DSWaveformImageView.h in Headers */ = {isa = PBXBuildFile; fileRef = C3790A151828CA3A0033D193 /* DSWaveformImageView.h */; settings = {ATTRIBUTES = (Public, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -214,7 +212,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				D6EABC691D6C063000C5862C /* DSWaveformImage.h in Headers */,
-				D6EABC6A1D6C063600C5862C /* DSWaveformImageView.h in Headers */,
 				D6EABC4C1D6C010700C5862C /* DSWaveformImageFramework.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -369,7 +366,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				D6EABC681D6C011600C5862C /* DSWaveformImageView.m in Sources */,
 				D6EABC671D6C011600C5862C /* DSWaveformImage.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
