@@ -8,7 +8,6 @@
 
 #import <UIKit/UIKit.h>
 #import "DSWaveformImage.h"
-#import "DSWaveformImageView.h"
 
 //! Project version number for DSWaveformImageFramework.
 FOUNDATION_EXPORT double DSWaveformImageFrameworkVersionNumber;

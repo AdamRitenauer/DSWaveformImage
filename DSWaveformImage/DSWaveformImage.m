@@ -8,11 +8,6 @@
 
 #import "DSWaveformImage.h"
 
-#define absX(x) (x<0?0-x:x)
-#define minMaxX(x,mn,mx) (x<=mn?mn:(x>=mx?mx:x))
-#define noiseFloor (-50.0)
-#define decibel(amplitude) (20.0 * log10(absX(amplitude)/32767.0))
-
 @implementation DSWaveformImage {
   DSWaveformStyle _style;
 }
@@ -30,18 +25,20 @@
 + (UIImage *)waveformForAssetAtURL:(NSURL *)url
 							 color:(UIColor *)color
 							height:(CGFloat)height
-				   samplesPerPixel:(Float32)samplesPerPixel
+				   secondsPerPixel:(NSTimeInterval)secondsPerPixel
 							 scale:(CGFloat)scale
 							 style:(DSWaveformStyle)style {
 
 	DSWaveformImage *waveformImage = [[DSWaveformImage alloc] initWithStyle:style];
 	
 	waveformImage.graphColor = color;
-	samplesPerPixel *= scale;
+	secondsPerPixel *= scale;
 	height *= scale;
-	NSData *imageData = [waveformImage renderPNGAudioPictogramLogForURL:url withHeight:height andFramesPerPixel:samplesPerPixel];
+	NSData *imageData = [waveformImage renderPNGAudioPictogramLogForURL:url withHeight:height andSecondsPerPixel:secondsPerPixel];
 	
-	return [UIImage imageWithData:imageData scale:scale];
+	UIImage *image = [UIImage imageWithData:imageData scale:scale];
+	
+	return image;
 }
 
 - (void)fillContext:(CGContextRef)context withRect:(CGRect)rect withColor:(UIColor *)color {
@@ -50,27 +47,27 @@
   CGContextFillRect(context, rect);
 }
 
-- (void)fillBackgroundInContext:(CGContextRef)context withColor:(UIColor *)backgroundColor {
-  CGSize imageSize = CGSizeMake(_imageWidth, _imageHeight);
+- (void)fillBackgroundInContext:(CGContextRef)context withColor:(UIColor *)backgroundColor size:(CGSize)imageSize {
   CGRect rect = CGRectZero;
   rect.size = imageSize;
 
   [self fillContext:context withRect:(CGRect) rect withColor:backgroundColor];
 }
 
-- (void)drawGraphWithStyle:(DSWaveformStyle)style
-                    inRect:(CGRect)rect
-                 onContext:(CGContextRef)context
-                 withColor:(CGColorRef)graphColor {
+- (void)drawGraph:(Float32 *)samples
+	  sampleCount:(UInt32)sampleCount
+		withStyle:(DSWaveformStyle)style
+		   inRect:(CGRect)rect
+		onContext:(CGContextRef)context
+		withColor:(CGColorRef)graphColor {
 
   float graphCenter = rect.size.height / 2;
-  float verticalPaddingDivisor = 1.2; // 2 = 50 % of height
-  float sampleAdjustmentFactor = (rect.size.height / verticalPaddingDivisor) / 2;
+  float sampleAdjustmentFactor = rect.size.height / 2;
   switch (style) {
     case DSWaveformStyleStripes:
-      for (NSInteger intSample = 0; intSample < _sampleCount; intSample++) {
-        Float32 sampleValue = (Float32) *_samples++;
-        float pixels = (1.0 + sampleValue) * sampleAdjustmentFactor;
+      for (NSInteger intSample = 0; intSample < sampleCount; intSample++) {
+        Float32 sampleValue = (Float32) *samples++;
+        float pixels = sampleValue * sampleAdjustmentFactor;
         float amplitudeUp = graphCenter - pixels;
         float amplitudeDown = graphCenter + pixels;
 
@@ -83,10 +80,10 @@
       break;
 
     case DSWaveformStyleFull:
-      for (NSInteger pointX = 0; pointX < _sampleCount; pointX++) {
-        Float32 sampleValue = (Float32) *_samples++;
+      for (NSInteger pointX = 0; pointX < sampleCount; pointX++) {
+        Float32 sampleValue = (Float32) *samples++;
 
-        float pixels = ((1.0 + sampleValue) * sampleAdjustmentFactor);
+        float pixels = sampleValue * sampleAdjustmentFactor;
         float amplitudeUp = graphCenter - pixels;
         float amplitudeDown = graphCenter + pixels;
 
@@ -103,27 +100,23 @@
 }
 
 - (UIImage *)audioImageLogGraph:(Float32 *)samples
-                   normalizeMax:(Float32)normalizeMax
                     sampleCount:(NSInteger)sampleCount
                     imageHeight:(float)imageHeight {
 
   CGFloat imageWidth = (CGFloat) sampleCount;
-  _samples = samples;
-  _normalizeMax = normalizeMax;
+	
   CGSize imageSize = CGSizeMake(imageWidth, imageHeight);
-  UIGraphicsBeginImageContext(imageSize);
+	
+	UIGraphicsBeginImageContext(imageSize);
   CGContextRef context = UIGraphicsGetCurrentContext();
 
-  _sampleCount = sampleCount;
-  _imageHeight = imageHeight;
-  _imageWidth = imageWidth;
-  [self fillBackgroundInContext:context withColor:[UIColor clearColor]];
+  [self fillBackgroundInContext:context withColor:[UIColor clearColor] size:CGSizeMake(imageWidth, imageHeight)];
 
   CGColorRef graphColor = self.graphColor.CGColor;
   CGContextSetLineWidth(context, 1.0);
   CGRect graphRect = CGRectMake(0, 0, imageWidth, imageHeight);
 
-  [self drawGraphWithStyle:self.style inRect:graphRect onContext:context withColor:graphColor];
+  [self drawGraph:samples sampleCount:sampleCount withStyle:self.style inRect:graphRect onContext:context withColor:graphColor];
 
   // Create new image
   UIImage *newImage = UIGraphicsGetImageFromCurrentImageContext();
@@ -134,7 +127,7 @@
   return newImage;
 }
 
-- (NSData *)renderPNGAudioPictogramLogForURL:(NSURL *)url withHeight:(CGFloat)height andFramesPerPixel:(UInt32) framesPerPixel {
+- (NSData *)renderPNGAudioPictogramLogForURL:(NSURL *)url withHeight:(CGFloat)height andSecondsPerPixel:(NSTimeInterval) secondsPerPixel {
 
 	
 	OSStatus ret = noErr;
@@ -148,7 +141,6 @@
 	
 	if (ret != noErr) {
 		
-		assert(@"Failed to open Audio File");
 		return nil;
 	}
 	
@@ -170,14 +162,15 @@
 	
 	if (ret != noErr) {
 		
-		assert(@"Failed to set audio client format");
 		return nil;
 	}
+	
+	UInt32 framesPerPixel = secondsPerPixel * asbd.mSampleRate;
 	
 	// Configure a single buffer that hold framesPerPixel frames,
 	// we will use to loop through the audio file
 	UInt32 bufferSize = framesPerPixel * sizeof(Float32) * asbd.mChannelsPerFrame;
-	void *frames = malloc(bufferSize);
+	Float32 *frames = malloc(bufferSize);
 	
 	AudioBuffer buffer = {
 		2, // UInt32 mNumberChannels;
@@ -194,10 +187,10 @@
 	NSMutableData *waveFormData = [[NSMutableData alloc] init];
 	
 	// Initialize values for waveform normalization
-	Float32 normalizeMax = fabsf(noiseFloor);
+	Float32 normalizeMax = 0;
 	Float64 totalAmplitude = 0;
 	
-	// Read the audio and calculate data points for the wave form
+	// Read the audio and calculate data points for each pixel in the wave form
 	UInt32 framesRead = 0;
 	while(true) {
 		
@@ -214,13 +207,14 @@
 			return nil;
 		}
 		
-		for(int j = 0; j < framesPerPixel; j++) {
+		int i = 0;
+		while(i < framesRead) {
 			
-			Float32 amplitude = ((Float32 *)frames)[j];
-			amplitude = decibel(amplitude);
-			amplitude = minMaxX(amplitude, noiseFloor, 0);
+			// Get the highest amplitude of either channel
+			Float32 amplitude = MAX(fabs(frames[i]),fabs(frames[i + 1]));
 			
 			totalAmplitude += amplitude;
+			i+=2;
 		}
 		
 		Float32 medianAmplitude = totalAmplitude / framesPerPixel;
@@ -231,30 +225,33 @@
 		[waveFormData appendBytes:&medianAmplitude length:sizeof(medianAmplitude)];
 		totalAmplitude = 0;
 	}
-
-    NSData *normalizedData = [self normalizeData:waveFormData normalizeMax:normalizeMax];
-
-    UIImage *graphImage = [self audioImageLogGraph:(Float32 *) normalizedData.bytes
-                                      normalizeMax:normalizeMax
-                                       sampleCount:waveFormData.length / sizeof(Float32)
-                                       imageHeight:_graphSize.height];
+	
+	int sampleCount = waveFormData.length / sizeof(Float32);
+	
+	[self normalize:waveFormData.mutableBytes
+		 numSamples:sampleCount
+				max:normalizeMax];
+	
+    UIImage *graphImage = [self audioImageLogGraph:(Float32 *) waveFormData.bytes
+                                       sampleCount:sampleCount
+                                       imageHeight:height];
 
     NSData *finalData = UIImagePNGRepresentation(graphImage);
 
 	return finalData;
 }
 
-- (NSData *)normalizeData:(NSData *)samples normalizeMax:(Float32)normalizeMax {
-  NSMutableData *normalizedData = [[NSMutableData alloc] init];
-  Float32 *rawData = (Float32 *) samples.bytes;
-
-  for (int sampleIndex = 0; sampleIndex < _graphSize.width; sampleIndex++) {
-    Float32 amplitude = (Float32) *rawData++;
-    amplitude /= normalizeMax;
-    [normalizedData appendBytes:&amplitude length:sizeof(amplitude)];
-  }
-
-  return normalizedData;
+- (void) normalize:(Float32 *)samples numSamples:(UInt32)numSamples max:(Float32)max {
+	
+	if (max == 0)
+		return;
+	
+	for(UInt32 i = 0; i < numSamples; i++) {
+	
+		if (samples[i] == 0)
+			continue;
+		
+		samples[i] = 1.0 / (max / samples[i]);
+	}
 }
-
 @end

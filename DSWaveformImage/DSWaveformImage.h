@@ -17,13 +17,10 @@ typedef enum {
 } DSWaveformStyle;
 
 @interface DSWaveformImage : UIImage {
-    NSInteger _sampleCount;
-    Float32 _normalizeMax;
     float _imageHeight;
     float _imageWidth;
     
     Float32 *_samples;
-    CGSize _graphSize;
 }
 
 @property(nonatomic) UIColor *graphColor;
@@ -32,7 +29,7 @@ typedef enum {
 + (UIImage *)waveformForAssetAtURL:(NSURL *)url
 							 color:(UIColor *)color
 							height:(CGFloat)height
-				   samplesPerPixel:(Float32)samplesPerPixel
+				   secondsPerPixel:(NSTimeInterval)secondsPerPixel
 							 scale:(CGFloat)scale
 							 style:(DSWaveformStyle)style;
 
